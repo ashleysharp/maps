@@ -1,0 +1,70 @@
+---
+title: "Zambia Administrative Boundaries and Population"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(sf)
+library(readxl)
+library(tmap)
+```
+
+## Load Data
+
+```{r load-shapefiles}
+# Administrative boundaries
+adm0 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm0_dmmu_20201124.shp")
+adm1 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm1_dmmu_20201124.shp")
+adm2 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm2_dmmu_20201124.shp")
+
+# Health facility points
+health_pts <- st_read("shapefiles/health_facilities/points/hotosm_zmb_health_facilities_points_shp.shp")
+```
+
+```{r load-population}
+# Population table (ADM2 level)
+# Sheet names include zmb_admpop_adm0_2020, zmb_admpop_adm1_2020, zmb_admpop_adm2_2020, etc
+pop_adm2 <- read_excel("data/zmb_admpop_2020.xlsx", sheet = "zmb_admpop_adm2_2020")
+```
+
+## Join Population to Boundaries
+
+```{r join}
+# Assume both data sets share ADM2_PCODE field
+adm2_pop <- adm2 %>%
+  left_join(pop_adm2, by = c("ADM2_PCODE" = "ADM2_PCODE"))
+```
+
+## Choropleth Map of Population (2020)
+
+```{r choropleth}
+tmap_mode("plot")
+
+# Use total population column named Both_TOTL
+tm_shape(adm2_pop) +
+  tm_polygons("Both_TOTL", palette = "Blues", style = "quantile", title = "Population 2020") +
+  tm_shape(health_pts) +
+  tm_dots(col = "red", size = 0.05, alpha = 0.7) +
+  tm_layout(title = "Zambia Population and Health Facilities (ADM2)")
+```
+
+## Administrative Level Maps
+
+```{r overview}
+# Province boundaries
+ggplot() +
+  geom_sf(data = adm1, fill = "white", color = "black") +
+  labs(title = "Zambia Provinces") +
+  theme_minimal()
+```
+
+```{r health-map}
+# Health facilities over ADM2 boundaries
+ggplot() +
+  geom_sf(data = adm2, fill = NA, color = "grey70") +
+  geom_sf(data = health_pts, color = "red", size = 0.5) +
+  labs(title = "Health Facilities") +
+  theme_minimal()
+```
+
