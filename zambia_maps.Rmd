@@ -8,32 +8,35 @@ library(tidyverse)
 library(sf)
 library(readxl)
 library(tmap)
+library(here)
+library(janitor)
 ```
 
 ## Load Data
 
-```{r load-shapefiles}
+```{r, include=FALSE}
 # Administrative boundaries
-adm0 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm0_dmmu_20201124.shp")
-adm1 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm1_dmmu_20201124.shp")
-adm2 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm2_dmmu_20201124.shp")
+adm0 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm0_dmmu_20201124.shp") %>% clean_names()
+adm1 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm1_dmmu_20201124.shp") %>% clean_names()
+adm2 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm2_dmmu_20201124.shp") %>% clean_names()
+admbndl <- st_read("shapefiles/administrative_boundaries/zmb_admbndl_admALL_dmmu_itos_20201124.shp") %>% clean_names()
+admbndp <- st_read("shapefiles/administrative_boundaries/zmb_admbndp_admALL_dmmu_itos_20201124.shp") %>% clean_names()
 
-# Health facility points
-health_pts <- st_read("shapefiles/health_facilities/points/hotosm_zmb_health_facilities_points_shp.shp")
+# Health facilities
+health_pts <- st_read("shapefiles/health_facilities/points/hotosm_zmb_health_facilities_points_shp.shp") %>% clean_names()
+health_poly <- st_read("shapefiles/health_facilities/polygons/hotosm_zmb_health_facilities_polygons_shp.shp") %>% clean_names()
 ```
 
-```{r load-population}
-# Population table (ADM2 level)
-# Sheet names include zmb_admpop_adm0_2020, zmb_admpop_adm1_2020, zmb_admpop_adm2_2020, etc
-pop_adm2 <- read_excel("data/zmb_admpop_2020.xlsx", sheet = "zmb_admpop_adm2_2020")
+```{r}
+# Population table
+pop_adm1 <- read_excel("data/zmb_admpop_2020.xlsx", sheet = "zmb_admpop_adm1_2020") %>% clean_names()
+pop_adm2 <- read_excel("data/zmb_admpop_2020.xlsx", sheet = "zmb_admpop_adm2_2020") %>% clean_names()
 ```
 
 ## Join Population to Boundaries
 
-```{r join}
-# Assume both data sets share ADM2_PCODE field
-adm2_pop <- adm2 %>%
-  left_join(pop_adm2, by = c("ADM2_PCODE" = "ADM2_PCODE"))
+```{r}
+adm1_pop <- adm1 %>% left_join(pop_adm1, by = c("adm1_pcode" = "adm1_code"))
 ```
 
 ## Choropleth Map of Population (2020)
@@ -42,12 +45,44 @@ adm2_pop <- adm2 %>%
 tmap_mode("plot")
 
 # Use total population column named Both_TOTL
-tm_shape(adm2_pop) +
-  tm_polygons("Both_TOTL", palette = "Blues", style = "quantile", title = "Population 2020") +
+tm_shape(adm1_pop) +
+  tm_polygons("both_totl", palette = "Blues", style = "quantile", title = "Population 2020") +
   tm_shape(health_pts) +
-  tm_dots(col = "red", size = 0.05, alpha = 0.7) +
-  tm_layout(title = "Zambia Population and Health Facilities (ADM2)")
+  tm_dots(col = "red", size = 0.05, alpha = 0.7)
 ```
+
+```{r choropleth}
+tmap_mode("plot")
+
+# Use total population column named Both_TOTL
+tm_shape(adm1_pop) +
+  tm_borders(col = "black") +
+  tm_text("adm1_en.y", size = 0.7) +
+  tm_shape(health_pts) +
+  tm_dots(size = 0.3, alpha = 0.3, col = "red")
+```
+
+```{r}
+tmap_mode("plot")
+
+tm_shape(adm2) + 
+  tm_borders(col = "grey50", lwd = 0.5) +  # District boundaries
+
+tm_shape(adm1) + 
+  tm_borders(col = "black", lwd = 2) +     # Province boundaries
+  tm_text("adm1_en", size = 0.7, fontface = "bold") +  # Province names
+
+tm_shape(health_pts) +
+  tm_dots(size = 0.3, alpha = 0.3, col = "red")
+```
+
+
+#Spatial join health facility by district
+```{r}
+health_pts_adm1 <- health_pts %>% st_join(adm1, join = st_intersects)
+health_pts_adm2 <- health_pts %>% st_join(adm2, join = st_intersects)
+```
+
 
 ## Administrative Level Maps
 
@@ -59,12 +94,17 @@ ggplot() +
   theme_minimal()
 ```
 
-```{r health-map}
+```{r}
 # Health facilities over ADM2 boundaries
 ggplot() +
   geom_sf(data = adm2, fill = NA, color = "grey70") +
-  geom_sf(data = health_pts, color = "red", size = 0.5) +
-  labs(title = "Health Facilities") +
+  geom_sf(data = adm1_pop, aes(fill = both_totl), color = "black", size = 1) +
+  geom_sf(data = health_pts, color = "red", size = 0.7, alpha = 0.4) +
+  geom_sf_text(data = adm1_pop, aes(label = adm1_en.x), size = 3) +  # Province names
+  scale_fill_viridis_c(option = "cividis", direction = 1, alpha = 0.2,
+                       name = "Population (2020)") +
+  labs(title = "Health Facilities and Provincial Population",
+       subtitle = "Zambia, 2020") +
   theme_minimal()
 ```
 
