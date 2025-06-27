@@ -22,9 +22,15 @@ adm2 <- st_read("shapefiles/administrative_boundaries/zmb_admbnda_adm2_dmmu_2020
 admbndl <- st_read("shapefiles/administrative_boundaries/zmb_admbndl_admALL_dmmu_itos_20201124.shp") %>% clean_names()
 admbndp <- st_read("shapefiles/administrative_boundaries/zmb_admbndp_admALL_dmmu_itos_20201124.shp") %>% clean_names()
 
-# Health facilities
-health_pts <- st_read("shapefiles/health_facilities/points/hotosm_zmb_health_facilities_points_shp.shp") %>% clean_names()
-health_poly <- st_read("shapefiles/health_facilities/polygons/hotosm_zmb_health_facilities_polygons_shp.shp") %>% clean_names()
+# Health facilities https://data.humdata.org/dataset/hotosm_zmb_health_facilities
+# health_pts <- st_read("shapefiles/health_facilities/points/hotosm_zmb_health_facilities_points_shp.shp") %>% clean_names()
+# health_poly <- st_read("shapefiles/health_facilities/polygons/hotosm_zmb_health_facilities_polygons_shp.shp") %>% clean_names()
+
+
+# Health facilities https://data.grid3.org/datasets/GRID3::nsdi-zambia-operational-health-facility-layer-version-01-beta/about
+health_pts <- st_read("shapefiles/health_facilities/nsdi/NSDI_Zambia_Operational_Health_Facility_Layer%2C_Version_01_(Beta).shp") %>% clean_names()
+
+write_csv(health_pts, "health_pts.csv")
 ```
 
 ```{r}
@@ -69,7 +75,7 @@ tm_shape(adm2) +
   tm_borders(col = "grey50", lwd = 0.5) +  # District boundaries
 
 tm_shape(adm1) + 
-  tm_borders(col = "black", lwd = 2) +     # Province boundaries
+  tm_borders(col = "black", lwd = 1) +     # Province boundaries
   tm_text("adm1_en", size = 0.7, fontface = "bold") +  # Province names
 
 tm_shape(health_pts) +
